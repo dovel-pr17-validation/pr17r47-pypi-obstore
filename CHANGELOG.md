@@ -1,0 +1,523 @@
+# Changelog
+
+## Unreleased
+
+## [0.12.1] - 2026-10-27
+
+### What's Changed
+
+* fix: preserve `version` in `get`/`head` metadata by @kylebarron in https://github.com/developmentseed/obstore/pull/807
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.12.0...py-v0.12.1
+
+## [0.12.0] - 2026-10-15
+
+### What's Changed
+
+* ci: add Windows ARM64 wheels by @ndabas in https://github.com/developmentseed/obstore/pull/775
+* fix: raise UnsupportedOperation exception in fsspec.BufferedFile impl by @RacleRay in https://github.com/developmentseed/obstore/pull/769
+* test: use pgsty/silo image for MinIO test fixture by @kylebarron in https://github.com/developmentseed/obstore/pull/783
+* fix: detach from the interpreter while creating a list stream by @kylebarron in https://github.com/developmentseed/obstore/pull/787
+* docs: use pgsty/silo image in MinIO example by @kylebarron in https://github.com/developmentseed/obstore/pull/784
+* fix(pyo3-bytes): don't panic on `b"" in Bytes` or a huge `Bytes * n` by @kylebarron in https://github.com/developmentseed/obstore/pull/788
+* feat!: build abi3t wheels for Python 3.15+ and drop Python 3.10 by @kylebarron in https://github.com/developmentseed/obstore/pull/792
+* chore(pyo3-bytes): Bump to pyo3 0.30 and prepare 0.8 release by @kylebarron in https://github.com/developmentseed/obstore/pull/796
+* fix: strip prefix from `get_opts` result in `MaybePrefixedStore` by @blinkybool in https://github.com/developmentseed/obstore/pull/745
+* chore(pyo3-object_store): Bump to pyo3 0.30 and prepare 0.13 release by @kylebarron in https://github.com/developmentseed/obstore/pull/797
+* chore: Bump obstore to pyo3 0.30 by @kylebarron in https://github.com/developmentseed/obstore/pull/798
+
+### New Contributors
+
+* @ndabas made their first contribution in https://github.com/developmentseed/obstore/pull/775
+* @RacleRay made their first contribution in https://github.com/developmentseed/obstore/pull/769
+* @blinkybool made their first contribution in https://github.com/developmentseed/obstore/pull/745
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.11.1...py-v0.12.0
+
+## [0.11.1] - 2026-08-21
+
+### What's Changed
+
+* perf: Reduce memory overhead for multipart uploads by @kylebarron in https://github.com/developmentseed/obstore/pull/771
+* fix: expose s3-specific endpoint config by @Guflly in https://github.com/developmentseed/obstore/pull/760
+* feat: Support R2 URLs with jurisdictions by @Kharacternyk in https://github.com/developmentseed/obstore/pull/757
+
+### New Contributors
+
+* @Guflly made their first contribution in https://github.com/developmentseed/obstore/pull/760
+* @Kharacternyk made their first contribution in https://github.com/developmentseed/obstore/pull/757
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.11.0...py-v0.11.1
+
+## [0.11.0] - 2026-06-25
+
+### What's Changed
+
+* chore: Bump object_store to 0.14 in pyo3-object_store by @kylebarron in https://github.com/developmentseed/obstore/pull/729
+* chore: Reflect upstream #711 by @kylebarron in https://github.com/developmentseed/obstore/pull/732
+* feat: Add option to disable bulk delete for AWS by @kylebarron in https://github.com/developmentseed/obstore/pull/733
+* feat: Config option to choose azure credential type by @kylebarron in https://github.com/developmentseed/obstore/pull/734
+* feat: Support Azure customer provided keys by @kylebarron in https://github.com/developmentseed/obstore/pull/735
+* feat: GCS explicit bearer token by @kylebarron in https://github.com/developmentseed/obstore/pull/737
+* chore: Bump obstore to use object_store 0.14 by @kylebarron in https://github.com/developmentseed/obstore/pull/738
+* feat: Expose proxy and custom-CA client options by @louisnow in https://github.com/developmentseed/obstore/pull/724
+
+### New Contributors
+
+* @louisnow made their first contribution in https://github.com/developmentseed/obstore/pull/724
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.10.1...py-v0.11.0
+
+### What's Changed
+
+* feat: Expose `proxy_excludes`, `proxy_ca_certificate`, and `root_certificate` client options
+
+## [0.10.1] - 2026-06-09
+
+### What's Changed
+
+* perf: reuse self as local store for the file protocol in fsspec by @kirchik47 in https://github.com/developmentseed/obstore/pull/713
+* test: Fix flakey planetary computer test by @kylebarron in https://github.com/developmentseed/obstore/pull/715
+* fix: resolve relative local paths in FsspecStore('file') by @kirchik47 in https://github.com/developmentseed/obstore/pull/712
+
+### New Contributors
+
+* @kirchik47 made their first contribution in https://github.com/developmentseed/obstore/pull/713
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.10.0...py-v0.10.1
+
+## [0.10.0] - 2026-06-01
+
+* feat: Add storage class Attribute by @kylebarron in https://github.com/developmentseed/obstore/pull/685
+* feat: Add type hints for AWS STS WebIdentity, RoleArn, RoleSession by @kylebarron in https://github.com/developmentseed/obstore/pull/687
+* feat: Add EKS pod identity support by @kylebarron in https://github.com/developmentseed/obstore/pull/688
+* docs: Improve wording for HTTP client options by @kylebarron in https://github.com/developmentseed/obstore/pull/689
+* feat: Allow explicitly specifying GCS base url by @kylebarron in https://github.com/developmentseed/obstore/pull/690
+* docs: Docs for backend bulk delete support by @kylebarron in https://github.com/developmentseed/obstore/pull/691
+* feat: Support randomizing DNS addresses in client config by @kylebarron in https://github.com/developmentseed/obstore/pull/692
+* docs: Add some examples to aws config options by @kylebarron in https://github.com/developmentseed/obstore/pull/693
+* docs: Allow AWS_ENDPOINT_URL_S3 by @kylebarron in https://github.com/developmentseed/obstore/pull/694
+* docs: Allow string "requester" for requester_pays on AWS by @kylebarron in https://github.com/developmentseed/obstore/pull/695
+* docs: Expose `read_timeout` client config by @kylebarron in https://github.com/developmentseed/obstore/pull/696
+* docs: AWS CRC64 checksum support by @kylebarron in https://github.com/developmentseed/obstore/pull/697
+* docs: Improve docs on http client timeout by @kylebarron in https://github.com/developmentseed/obstore/pull/698
+* chore: Update azure url parsing by @kylebarron in https://github.com/developmentseed/obstore/pull/699
+* docs: Remove AWS dynamo integration for conditional put by @kylebarron in https://github.com/developmentseed/obstore/pull/700
+* feat: Make ObjectStoreMethods public, update docs by @kylebarron in https://github.com/developmentseed/obstore/pull/701
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.9.5...py-v0.10.0
+
+## [0.9.5] - 2026-05-20
+
+### What's Changed
+
+- fix: Fix handling prefix during signing https://github.com/developmentseed/obstore/pull/683
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.9.4...py-v0.9.5
+
+## [0.9.4] - 2026-04-22
+
+### What's Changed
+
+- fix: Fix path parsing for copy, rename by @kylebarron in https://github.com/developmentseed/obstore/pull/672
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.9.3...py-v0.9.4
+
+## [0.9.3] - 2026-04-15
+
+### What's Changed
+
+* docs: Add devseed favicon by @kylebarron in https://github.com/developmentseed/obstore/pull/641
+* ci: Use trusted publishing by @kylebarron in https://github.com/developmentseed/obstore/pull/642
+* docs: Fix rendering of `PutMode` docstring by @kylebarron in https://github.com/developmentseed/obstore/pull/645
+* ci: add Dependabot for GitHub Actions version updates by @lhoupert in https://github.com/developmentseed/obstore/pull/647
+* feat: Fsspec: Convert async methods that open sync file handles to use LocalStore by @matteomorlack in https://github.com/developmentseed/obstore/pull/656
+* ci: pin gha to sha commit by @lhoupert in https://github.com/developmentseed/obstore/pull/659
+* ci: Use github app token for conventional commit labeling by @kylebarron in https://github.com/developmentseed/obstore/pull/662
+* fix(fsspec): _info() should honor self.dircache by @fvaleye in https://github.com/developmentseed/obstore/pull/663
+* feat(buffered): deprecate ReadableFile.meta and AsyncReadableFile.meta by @fvaleye in https://github.com/developmentseed/obstore/pull/667
+
+### New Contributors
+
+* @lhoupert made their first contribution in https://github.com/developmentseed/obstore/pull/647
+* @dependabot[bot] made their first contribution in https://github.com/developmentseed/obstore/pull/652
+* @matteomorlack made their first contribution in https://github.com/developmentseed/obstore/pull/656
+* @fvaleye made their first contribution in https://github.com/developmentseed/obstore/pull/663
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.9.2...py-v0.9.3
+
+## [0.9.2] - 2026-03-11
+
+### What's Changed
+
+* ci: Run tests on 3.13, 3.14, 3.14t by @kylebarron in https://github.com/developmentseed/obstore/pull/637
+* feat: Add Python 3.13t and 3.14t builds / wheels by @DisturbedOcean in https://github.com/developmentseed/obstore/pull/619
+* feat: Bump upstream `object_store` version by @kylebarron in https://github.com/developmentseed/obstore/pull/636
+    * This should reduce contention on the credential cache for highly-concurrent usage. See https://github.com/apache/arrow-rs-object-store/issues/541, some initial discussion in https://github.com/apache/arrow-rs-object-store/pull/542, and fix in https://github.com/apache/arrow-rs-object-store/pull/648.
+* fix: Fix pytest warning about `@pytest.mark.asyncio` on non-async function by @kylebarron in https://github.com/developmentseed/obstore/pull/638
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.9.1...py-v0.9.2
+
+## [0.9.1] - 2026-02-26
+
+- fix: Include prefix in `delete_stream` #629
+
+## [0.9.0] - 2026-02-22
+
+### Breaking Changes
+
+* chore!: Deprecate support for python 3.9 by @kylebarron in https://github.com/developmentseed/obstore/pull/609
+
+### What's Changed
+
+* fix: Remove TypeVar constraints on arro3-core to fix list typing when arro3-core not installed by @kylebarron in https://github.com/developmentseed/obstore/pull/578
+* docs: Update cookbook.md - unmatched quotes by @mdsumner in https://github.com/developmentseed/obstore/pull/587
+* fix: Prevent early EOF error in reader.read by @nvictus in https://github.com/developmentseed/obstore/pull/593
+* feat: Allow S3 HTTP URLs without region by @kylebarron in https://github.com/developmentseed/obstore/pull/590
+* feat: upgrade object store 0.13.x by @alukach in https://github.com/developmentseed/obstore/pull/600
+* ci: Make abi3 wheels for mainline Python 3.11+ by @kylebarron in https://github.com/developmentseed/obstore/pull/623
+* feat: Update docs, examples, tests to use method-based API by @kylebarron in https://github.com/developmentseed/obstore/pull/625
+
+### New Contributors
+
+* @nvictus made their first contribution in https://github.com/developmentseed/obstore/pull/593
+* @alukach made their first contribution in https://github.com/developmentseed/obstore/pull/600
+* @DisturbedOcean made their first contribution in https://github.com/developmentseed/obstore/pull/620
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.8.2...py-v0.9.0
+
+## [0.8.2] - 2025-09-16
+
+### What's Changed
+
+- Added sdist and wheels for Python 3.14 (except Windows) @kylebarron in https://github.com/developmentseed/obstore/pull/561 and https://github.com/developmentseed/obstore/pull/563
+- test: Set up minio-based testing, replace moto by @kylebarron in https://github.com/developmentseed/obstore/pull/553
+- chore: Bump ruff to 0.13 by @kylebarron in https://github.com/developmentseed/obstore/pull/562
+- docs: Use dictionary syntax for list properties by @mdsumner in https://github.com/developmentseed/obstore/pull/558
+
+### New Contributors
+
+- @mdsumner made their first contribution in https://github.com/developmentseed/obstore/pull/558
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.8.1...py-v0.8.2
+
+## [0.8.1] - 2025-08-22
+
+## What's Changed
+
+- fix: Fix passing down `application_credentials` to GCSStore by @kylebarron in https://github.com/developmentseed/obstore/pull/541
+- fix: earthdata token refresh when not redirected by @chuckwondo in https://github.com/developmentseed/obstore/pull/539
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.8.0...py-v0.8.1
+
+## [0.8.0] - 2025-08-07
+
+### What's Changed
+
+- **Breaking:** Don't double percent-encode paths by @kylebarron in https://github.com/developmentseed/obstore/pull/524
+  - This changes the internals from using [`Path` "encoding"](https://docs.rs/object_store/latest/object_store/path/struct.Path.html#encode) to [`Path` "parsing"](https://docs.rs/object_store/latest/object_store/path/struct.Path.html#parse). This avoids issues where paths could be unintentionally double-encoded. But this means that the user must ensure that paths are valid.
+- fix: Only SHA256 is supported for S3 checksum algorithm by @kylebarron in https://github.com/developmentseed/obstore/pull/527
+
+## [0.7.3] - 2025-08-01
+
+### What's Changed
+
+- fix: Fix conversion from python string to Rust Attribute #520
+- chore: Bump arrow to 56
+
+## [0.7.2] - 2025-07-31
+
+### What's Changed
+
+- feat(fsspec): `FsspecStore.modified()` by @keen85 in https://github.com/developmentseed/obstore/pull/517
+
+### New Contributors
+
+- @keen85 made their first contribution in https://github.com/developmentseed/obstore/pull/517
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.7.1...py-v0.7.2
+
+## [0.7.1] - 2025-07-24
+
+### What's Changed
+
+- chore: Bump object_store to 0.12.3 by @kylebarron in https://github.com/developmentseed/obstore/pull/501. [From upstream changelog](https://github.com/apache/arrow-rs-object-store/blob/v0.12.3/CHANGELOG.md):
+  - Retry on 429s and equivalents (https://github.com/apache/arrow-rs-object-store/issues/309)
+  - Support `container@account.dfs.core.windows.net/path` URL style for `az` protocol (https://github.com/apache/arrow-rs-object-store/issues/285)
+
+### Documentation :book:
+
+- docs: Add Cloudflare R2 example by @kylebarron in https://github.com/developmentseed/obstore/pull/504
+- docs: Improve documentation about URL path handling in `from_url` class methods by @kylebarron in https://github.com/developmentseed/obstore/pull/512
+- docs: Clarify that `return_arrow` is only a performance optimization by @kylebarron in https://github.com/developmentseed/obstore/pull/513
+
+### Other
+
+- fix: fix pyright config by @pjonsson in https://github.com/developmentseed/obstore/pull/505
+- ci: reinstate pyright check by @pjonsson in https://github.com/developmentseed/obstore/pull/510
+
+### New Contributors
+
+- @pjonsson made their first contribution in https://github.com/developmentseed/obstore/pull/505
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.7.0...py-v0.7.1
+
+## [0.7.0] - 2025-06-25
+
+### New Features :magic_wand:
+
+- Support anonymous GCS connections by @kylebarron in https://github.com/developmentseed/obstore/pull/404
+- Support default headers in client options by @kylebarron in https://github.com/developmentseed/obstore/pull/427
+- Validate that obstore implements the obspec API by @kylebarron in https://github.com/developmentseed/obstore/pull/461
+- Allow passing credential providers in to fsspec wrapper by @kylebarron in https://github.com/developmentseed/obstore/pull/396
+- feat: Improve NASA Earthdata credential providers by @chuckwondo in https://github.com/developmentseed/obstore/pull/472
+- feat: Deprecate custom NotFoundError in favor of built-in FileNotFoundError by @kylebarron in https://github.com/developmentseed/obstore/pull/487
+
+### Breaking changes :wrench:
+
+- `obstore.auth.AzureCredentialProvider` (and `obstore.auth.AzureAsyncCredentialProvider`) removed some attributes that were previously accidentally public. Also, `scopes` and `tenant_id` parameters in the `__init__` of those two classes are now keyword-only parameters. by @kylebarron in https://github.com/developmentseed/obstore/pull/442
+
+### Bug fixes :bug:
+
+- Remove `@staticmethod` from credential provider type annotations by @kylebarron in https://github.com/developmentseed/obstore/pull/446
+- Enable accessing `meta`, `range`, and `attributes` after reading `GetResult` payload by @kylebarron in https://github.com/developmentseed/obstore/pull/440
+- Ensure we always release the GIL before calling `tokio::Runtime::block_on` by @kylebarron in https://github.com/developmentseed/obstore/pull/451
+- fix: AzureStore creation by HTTPS url by @kylebarron in https://github.com/developmentseed/obstore/pull/481
+
+### Documentation :book:
+
+- docs: Add Zarr example to docs by @kylebarron in https://github.com/developmentseed/obstore/pull/468
+- docs: stream-zip example by @kylebarron in https://github.com/developmentseed/obstore/pull/470
+- fix: docs for json.loads(bytes) by @gadomski in https://github.com/developmentseed/obstore/pull/432
+
+### Other
+
+- Include `object_store` version and source in Python dist by @kylebarron in https://github.com/developmentseed/obstore/pull/408
+
+### New Contributors
+
+- @emmanuel-ferdman made their first contribution in https://github.com/developmentseed/obstore/pull/410
+- @gadomski made their first contribution in https://github.com/developmentseed/obstore/pull/432
+- @chuckwondo made their first contribution in https://github.com/developmentseed/obstore/pull/454
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.6.0...py-v0.7.0
+
+## [0.6.0] - 2025-03-24
+
+### New Features :magic_wand:
+
+- Planetary computer credential provider by @kylebarron in https://github.com/developmentseed/obstore/pull/379
+
+### Breaking changes :wrench:
+
+#### Object store methods
+
+No breaking changes.
+
+#### Store constructors
+
+- In the `AzureStore` constructor, the `container` positional argument was renamed to `container_name` to match the `container_name` key in `AzureConfig`. by @kylebarron in https://github.com/developmentseed/obstore/pull/380
+
+  This is a breaking change if you had been calling `AzureStore(container="my container name")`.
+
+  This is **not** breaking if you had been using it as a positional argument `AzureStore("my container name")` or if you had already been using `AzureStore(container_name="my container name")`.
+
+  The idea here is that we want one and only one argument name for each underlying config parameter. Most of these breaking changes took place in 0.5.0, but this was overlooked.
+
+### Bug fixes :bug:
+
+- Fix import errors on Python 3.9:
+  - Fix azure auth import on Python 3.9 by @kylebarron in https://github.com/developmentseed/obstore/pull/378
+  - Fix `_buffered.pyi` for python 3.9 by @kylebarron in https://github.com/developmentseed/obstore/pull/381
+- Define `__all__` to fix type checking import paths https://github.com/developmentseed/obstore/pull/389
+
+### Documentation :book:
+
+- Fix chunk_size typo by @kylebarron in https://github.com/developmentseed/obstore/pull/377
+- Docs: Make integrations dropdown by @kylebarron in https://github.com/developmentseed/obstore/pull/382
+- Docs: Use source order in credential provider docs by @kylebarron in https://github.com/developmentseed/obstore/pull/383
+
+### Other
+
+- Add typing extensions as runtime dependency by @kylebarron in https://github.com/developmentseed/obstore/pull/384
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.5.1...py-v0.6.0
+
+## [0.5.1] - 2025-03-17
+
+### Bug fixes :bug:
+
+- Fix import errors for Python 3.9 and 3.10. Update CI. by @kylebarron in https://github.com/developmentseed/obstore/pull/372
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.5.0...py-v0.5.1
+
+## [0.5.0] - 2025-03-17
+
+### New Features :magic_wand:
+
+- **Class methods wrapper**. Instead of calling `obstore.get(store)`, you can now call `store.get()` directly. by @kylebarron in https://github.com/developmentseed/obstore/pull/331
+- **User-supplied credential callback** by @kylebarron in https://github.com/developmentseed/obstore/pull/234
+  - Add Azure credential providers by @daviewales in https://github.com/developmentseed/obstore/pull/343
+- **Fsspec updates**:
+  - [FEAT] Create obstore store in fsspec on demand by @machichima in https://github.com/developmentseed/obstore/pull/198
+  - [FEAT] support df.to_parquet and df.read_parquet() by @machichima in https://github.com/developmentseed/obstore/pull/165
+  - Document fsspec integration in user guide by @kylebarron in https://github.com/developmentseed/obstore/pull/299
+  - fsspec: Allow calling `register` with no arguments by @kylebarron in https://github.com/developmentseed/obstore/pull/298
+- Enable pickling Bytes by @kylebarron in https://github.com/developmentseed/obstore/pull/295
+- Add AWS literal type hints by @kylebarron in https://github.com/developmentseed/obstore/pull/301
+- pyo3-bytes slicing by @jessekrubin in https://github.com/developmentseed/obstore/pull/249
+
+### Breaking changes :wrench:
+
+#### Object store methods
+
+No breaking changes.
+
+#### Store constructors
+
+- Removed `S3Store.from_session` and `S3Store._from_native`. Use credential providers instead.
+- Reduce the config variations supported for input. I.e. we previously allowed `region`, `aws_region`, `REGION` or `AWS_REGION` as a config parameter to `S3Store`, which could make it confusing. We now only support a single config input value for each underlying concept. https://github.com/developmentseed/obstore/pull/323
+
+#### Fsspec
+
+- Rename `AsyncFsspecStore` to `FsspecStore` by @kylebarron in https://github.com/developmentseed/obstore/pull/297
+
+### Bug fixes :bug:
+
+- Validate input for range request by @kylebarron in https://github.com/developmentseed/obstore/pull/255
+
+### Documentation :book:
+
+- Update performance numbers by @kylebarron in https://github.com/developmentseed/obstore/pull/307
+- Document type-only constructs by @kylebarron in https://github.com/developmentseed/obstore/pull/309, https://github.com/developmentseed/obstore/pull/311
+- Add import warning admonition on ObjectStore type by @kylebarron in
+- Update etag conditional put docs by @kylebarron in https://github.com/developmentseed/obstore/pull/310
+
+### New Contributors
+
+- @weiji14 made their first contribution in https://github.com/developmentseed/obstore/pull/272
+- @machichima made their first contribution in https://github.com/developmentseed/obstore/pull/198
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.4.0...py-v0.5.0
+
+## [0.4.0] - 2025-02-10
+
+### New Features :magic_wand:
+
+- **Support for pickling** & always manage store prefix by @kylebarron in https://github.com/developmentseed/obstore/pull/185, https://github.com/developmentseed/obstore/pull/239, https://github.com/developmentseed/obstore/pull/223
+- **Add top-level `obstore.store.from_url` function**, which delegates to each store's `from_url` constructor by @kylebarron in https://github.com/developmentseed/obstore/pull/179, https://github.com/developmentseed/obstore/pull/201
+- Add option to return Arrow from `list_with_delimiter` by @kylebarron in https://github.com/developmentseed/obstore/pull/238, https://github.com/developmentseed/obstore/pull/244
+- (Provisional) **Enhanced loading of s3 credentials** using `aws-config` crate by @kylebarron in https://github.com/developmentseed/obstore/pull/203
+- **Access config values out from stores** by @kylebarron in https://github.com/developmentseed/obstore/pull/210
+- LocalStore updates:
+  - Enable automatic cleanup for local store, when deleting directories by @kylebarron in https://github.com/developmentseed/obstore/pull/175
+  - Optionally create root dir in LocalStore by @kylebarron in https://github.com/developmentseed/obstore/pull/177
+- **File-like object** updates:
+
+  - Add support for writable file-like objects by @kylebarron in https://github.com/developmentseed/obstore/pull/167
+  - Updates to readable file API:
+
+    - Support user-specified capacity in readable file-like objects by @kylebarron in https://github.com/developmentseed/obstore/pull/174
+    - Expose `ObjectMeta` from readable file API by @kylebarron in https://github.com/developmentseed/obstore/pull/176
+
+- Merge `config` and `kwargs` and validate that no configuration parameters have been passed multiple times. (https://github.com/developmentseed/obstore/pull/180, https://github.com/developmentseed/obstore/pull/182, https://github.com/developmentseed/obstore/pull/218)
+- Add `__repr__` to `Bytes` class by @jessekrubin in https://github.com/developmentseed/obstore/pull/173
+
+### Breaking changes :wrench:
+
+- `get_range`, `get_range_async`, `get_ranges`, and `get_ranges_async` now require named parameters for `start`, `end`, and `length` to make the semantics of the range request fully explicit. by @kylebarron in https://github.com/developmentseed/obstore/pull/156
+- Previously, individual stores did not manage a prefix path within the remote resource and [`PrefixStore`](https://developmentseed.org/obstore/v0.3.0/api/store/middleware/#obstore.store.PrefixStore) was used to enable this. As of 0.4.0, `PrefixStore` was removed and all stores manage an optional mount prefix natively.
+- `obstore.open` has been renamed to `obstore.open_reader`.
+- The `from_env` constructor has been removed from `S3Store`, `GCSStore`, and `AzureStore`. Now all constructors will read from environment variables. Use `__init__` or `from_url` instead. https://github.com/developmentseed/obstore/pull/189
+- `obstore.exceptions.ObstoreError` renamed to `obstore.exceptions.BaseError` https://github.com/developmentseed/obstore/pull/200
+
+### Bug fixes :bug:
+
+- Fix pylance finding exceptions module by @kylebarron in https://github.com/developmentseed/obstore/pull/183
+- Allow passing in partial retry/backoff config by @kylebarron in https://github.com/developmentseed/obstore/pull/205
+- Fix returning None from async functions by @kylebarron in https://github.com/developmentseed/obstore/pull/245
+- Fix LocalStore range request past end of file, by @kylebarron in https://github.com/developmentseed/obstore/pull/230
+
+### Documentation :book:
+
+- Update wording for fsspec docstring by @kylebarron in https://github.com/developmentseed/obstore/pull/195
+- Add documentation about AWS region by @kylebarron in https://github.com/developmentseed/obstore/pull/213
+- Add developer documentation for functional API choice by @kylebarron in https://github.com/developmentseed/obstore/pull/215
+- Add `tqdm` progress bar example by @kylebarron in https://github.com/developmentseed/obstore/pull/237
+- Add contributor, performance, integrations docs by @kylebarron in https://github.com/developmentseed/obstore/pull/227
+- Add minio example by @kylebarron in https://github.com/developmentseed/obstore/pull/241
+
+### Other
+
+- Use manylinux 2_24 for aarch64 linux wheels by @kylebarron in https://github.com/developmentseed/obstore/pull/225
+
+### New Contributors
+
+- @vincentsarago made their first contribution in https://github.com/developmentseed/obstore/pull/168
+- @jessekrubin made their first contribution in https://github.com/developmentseed/obstore/pull/173
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.3.0...py-v0.4.0
+
+## [0.3.0] - 2025-01-16
+
+### New Features :magic_wand:
+
+- **Streaming uploads**. `obstore.put` now supports iterable input, and `obstore.put_async` now supports async iterable input. This means you can pass the output of `obstore.get_async` directly into `obstore.put_async`. by @kylebarron in https://github.com/developmentseed/obstore/pull/54
+- **Allow passing config options directly** as keyword arguments. Previously, you had to pass all options as a `dict` into the `config` parameter. Now you can pass the elements directly to the store constructor. by @kylebarron in https://github.com/developmentseed/obstore/pull/144
+- **Readable file-like objects**. Open a readable file-like object with `obstore.open` and `obstore.open_async`. by @kylebarron in https://github.com/developmentseed/obstore/pull/33
+- **Fsspec integration** by @martindurant in https://github.com/developmentseed/obstore/pull/63
+- Prefix store by @kylebarron in https://github.com/developmentseed/obstore/pull/117
+- Python 3.13 wheels by @kylebarron in https://github.com/developmentseed/obstore/pull/95
+- Support python timedelta objects as duration config values by @kylebarron in https://github.com/developmentseed/obstore/pull/146
+- Add class constructors for store builders. Each store now has an `__init__` method, for easier construction. by @kylebarron in https://github.com/developmentseed/obstore/pull/141
+
+### Breaking changes :wrench:
+
+- `get_range`, `get_range_async`, `get_ranges`, and `get_ranges_async` now use **start/end** instead of **offset/length**. This is for consistency with the `range` option of `obstore.get`. by @kylebarron in https://github.com/developmentseed/obstore/pull/71
+
+* Return `Bytes` from `GetResult.bytes()` by @kylebarron in https://github.com/developmentseed/obstore/pull/134
+
+### Bug fixes :bug:
+
+- boto3 region name can be None by @kylebarron in https://github.com/developmentseed/obstore/pull/59
+- add missing py.typed file by @gruebel in https://github.com/developmentseed/obstore/pull/115
+
+### Documentation :book:
+
+- FastAPI/Starlette example by @kylebarron in https://github.com/developmentseed/obstore/pull/145
+- Add conda installation doc to README by @kylebarron in https://github.com/developmentseed/obstore/pull/78
+- Document suggested lifecycle rules for aborted multipart uploads by @kylebarron in https://github.com/developmentseed/obstore/pull/139
+- Add type hint and documentation for requester pays by @kylebarron in https://github.com/developmentseed/obstore/pull/131
+- Add note that S3Store can be constructed without boto3 by @kylebarron in https://github.com/developmentseed/obstore/pull/108
+- HTTP Store usage example by @kylebarron in https://github.com/developmentseed/obstore/pull/142
+
+### What's Changed
+
+- Improved docs for from_url by @kylebarron in https://github.com/developmentseed/obstore/pull/138
+- Implement read_all for async iterable by @kylebarron in https://github.com/developmentseed/obstore/pull/140
+
+### New Contributors
+
+- @willemarcel made their first contribution in https://github.com/developmentseed/obstore/pull/64
+- @martindurant made their first contribution in https://github.com/developmentseed/obstore/pull/63
+- @norlandrhagen made their first contribution in https://github.com/developmentseed/obstore/pull/107
+- @gruebel made their first contribution in https://github.com/developmentseed/obstore/pull/115
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.2.0...py-v0.3.0
+
+## [0.2.0] - 2024-10-25
+
+### What's Changed
+
+- Streaming list results. `list` now returns an async or sync generator. by @kylebarron in https://github.com/developmentseed/obstore/pull/35
+- Optionally return list result as arrow. The `return_arrow` keyword argument returns chunks from `list` as Arrow RecordBatches, which is faster than materializing Python dicts/lists. by @kylebarron in https://github.com/developmentseed/obstore/pull/38
+- Return buffer protocol object from `get_range` and `get_ranges`. Enables zero-copy data exchange from Rust into Python. by @kylebarron in https://github.com/developmentseed/obstore/pull/39
+- Add put options. Enables custom tags and attributes, as well as "put if not exists". by @kylebarron in https://github.com/developmentseed/obstore/pull/50
+- Rename to obstore by @kylebarron in https://github.com/developmentseed/obstore/pull/45
+- Add custom exceptions. by @kylebarron in https://github.com/developmentseed/obstore/pull/48
+
+**Full Changelog**: https://github.com/developmentseed/obstore/compare/py-v0.1.0...py-v0.2.0
+
+## [0.1.0] - 2024-10-21
+
+- Initial release.

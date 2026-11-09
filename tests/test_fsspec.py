@@ -1,0 +1,735 @@
+from __future__ import annotations
+
+import gc
+import os
+import zipfile
+from io import UnsupportedOperation
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
+from unittest.mock import patch
+
+import fsspec
+import pyarrow.parquet as pq
+import pytest
+from fsspec.registry import _registry
+
+from obstore.fsspec import FsspecStore, register
+from tests.conftest import TEST_BUCKET_NAME
+
+if TYPE_CHECKING:
+    from obstore.store import ClientConfig, S3Config
+
+
+@pytest.fixture
+def fs(minio_bucket: tuple[S3Config, ClientConfig]):
+    register("s3")
+    return fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+
+
+@pytest.fixture(autouse=True)
+def cleanup_after_test():
+    """Cleanup function to run after each test."""
+    yield  # Runs the test first
+
+    # clear the registered implementations after each test
+    _registry.clear()
+
+    gc.collect()
+
+
+def test_register():
+    """Test if register() creates and registers a subclass for a given protocol."""
+    register("s3")  # Register the "s3" protocol dynamically
+    fs_class = fsspec.get_filesystem_class("s3")
+
+    assert issubclass(
+        fs_class,
+        FsspecStore,
+    ), "Registered class should be a subclass of FsspecStore"
+    assert fs_class.protocol == "s3", (
+        "Registered class should have the correct protocol"
+    )
+
+    # Ensure a new instance of the registered store can be created
+    fs_instance = fs_class("s3")
+    assert isinstance(
+        fs_instance,
+        FsspecStore,
+    ), "Registered class should be instantiable"
+
+    # test register asynchronous
+    register("gcs", asynchronous=True)  # Register the "s3" protocol dynamically
+    fs_class = fsspec.get_filesystem_class("gcs")
+    assert fs_class.asynchronous, "Registered class should be asynchronous"
+
+    # test multiple registrations
+    register(["file", "abfs"])
+    assert issubclass(fsspec.get_filesystem_class("file"), FsspecStore)
+    assert issubclass(fsspec.get_filesystem_class("abfs"), FsspecStore)
+
+
+@pytest.mark.asyncio
+async def test_info_returns_cached_entry_without_constructing_store():
+    register("file")
+    fs: FsspecStore = fsspec.filesystem("file", asynchronous=True)
+
+    cached_entry = {
+        "name": "bucket/file.parquet",
+        "size": 12345,
+        "type": "file",
+        "e_tag": None,
+        "last_modified": None,
+        "version": None,
+    }
+    fs.dircache["bucket"] = [cached_entry]
+
+    with patch.object(fs, "_construct_store") as mock_construct:
+        result = await fs._info("bucket/file.parquet")
+
+    assert result == cached_entry
+    assert mock_construct.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_info_falls_through_to_head_on_dircache_miss():
+    register("file")
+    fs: FsspecStore = fsspec.filesystem("file", asynchronous=True)
+    assert fs.dircache == {}
+
+    with patch.object(fs, "_construct_store") as mock_construct:
+        mock_construct.side_effect = RuntimeError("HEAD path entered")
+        with pytest.raises(RuntimeError, match="HEAD path entered"):
+            await fs._info("bucket/some/file.parquet")
+
+    assert mock_construct.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_info_raises_filenotfound_when_parent_cached_and_child_absent():
+    register("file")
+    fs: FsspecStore = fsspec.filesystem("file", asynchronous=True)
+    fs.dircache["bucket"] = [
+        {"name": "bucket/other.parquet", "type": "file", "size": 1},
+    ]
+
+    with (
+        patch.object(fs, "_construct_store") as mock_construct,
+        pytest.raises(FileNotFoundError),
+    ):
+        await fs._info("bucket/missing.parquet")
+
+    assert mock_construct.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_info_synthesizes_directory_when_path_is_cached_dir_key():
+    register("file")
+    fs: FsspecStore = fsspec.filesystem("file", asynchronous=True)
+    fs.dircache["bucket/sub"] = [
+        {"name": "bucket/sub/child1", "type": "file", "size": 1},
+        {"name": "bucket/sub/child2", "type": "file", "size": 2},
+    ]
+
+    with patch.object(fs, "_construct_store") as mock_construct:
+        result = await fs._info("bucket/sub")
+
+    assert result == {"name": "bucket/sub", "size": 0, "type": "directory"}
+    assert mock_construct.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_info_synthesizes_directory_for_trailing_slash_query():
+    register("file")
+    fs: FsspecStore = fsspec.filesystem("file", asynchronous=True)
+    fs.dircache["bucket"] = [
+        {"name": "bucket/sub", "type": "directory", "size": 0},
+    ]
+
+    with patch.object(fs, "_construct_store") as mock_construct:
+        result = await fs._info("bucket/sub/")
+
+    assert result == {"name": "bucket/sub/", "size": 0, "type": "directory"}
+    assert mock_construct.call_count == 0
+
+
+def test_buffered_file_forwards_size_to_open_reader():
+    register("file")
+    fs: FsspecStore = fsspec.filesystem("file", asynchronous=False)
+
+    with TemporaryDirectory() as tmp:
+        path = Path(tmp) / "sized.bin"
+        path.write_bytes(b"x" * 1000)
+
+        file = fs._open(str(path), mode="rb", size=500)
+
+        assert file.size == 500
+        assert file._reader.size == 500
+
+        data = file.read()
+        assert len(data) == 500
+
+
+def test_zipfile_write_mode():
+    """Ensure a write-mode file can fall back to ZipFile non-seekable code path."""
+    register("memory")
+    fs: FsspecStore = fsspec.filesystem("memory")
+
+    with (
+        fs._open("archive.zip", mode="wb") as filelike,
+        zipfile.ZipFile(filelike, "w") as zf,
+    ):
+        zf.writestr("hello.txt", "hello world")
+
+    with (
+        fs._open("archive.zip") as filelike,
+        zipfile.ZipFile(filelike) as zf,
+    ):
+        assert zf.read("hello.txt") == b"hello world"
+
+
+def test_write_after_close_raises_value_error():
+    """A use-after-close must raise a plain ValueError, not UnsupportedOperation."""
+    register("memory")
+    fs: FsspecStore = fsspec.filesystem("memory")
+
+    filelike = fs._open("closed.bin", mode="wb")
+    filelike.write(b"data")
+    filelike.close()
+
+    with pytest.raises(ValueError, match="I/O operation on closed file") as exc_info:
+        filelike.write(b"more")
+
+    assert not isinstance(exc_info.value, OSError)
+
+
+def test_write_on_read_mode_file_raises_unsupported_operation():
+    """Writing to a non-closed read-mode file still reports a missing capability."""
+    register("memory")
+    fs: FsspecStore = fsspec.filesystem("memory")
+
+    fs.pipe_file("read.bin", b"data")
+
+    with (
+        fs._open("read.bin", mode="rb") as filelike,
+        pytest.raises(UnsupportedOperation, match="File not in write mode"),
+    ):
+        filelike.write(b"more")
+
+
+@pytest.mark.parametrize("mode", ["rb", "wb"])
+def test_read_operations_after_close_raises_value_error(mode: str):
+    """Read-side ops on a closed file must report the closed state first."""
+    register("memory")
+    fs: FsspecStore = fsspec.filesystem("memory")
+
+    if mode == "rb":
+        fs.pipe_file("lines.txt", b"line1\nline2\n")
+        filelike = fs._open("lines.txt", mode="rb")
+        assert filelike.readline() == b"line1\n"
+    else:
+        filelike = fs._open("closed.bin", mode="wb")
+        filelike.write(b"data")
+    filelike.close()
+
+    for name, operation in [
+        ("read", lambda: filelike.read(2)),
+        ("read-default", filelike.read),
+        ("readline", filelike.readline),
+        ("readlines", filelike.readlines),
+        ("seek", lambda: filelike.seek(0)),
+    ]:
+        with pytest.raises(
+            ValueError,
+            match="I/O operation on closed file",
+        ) as exc_info:
+            operation()
+
+        assert not isinstance(exc_info.value, OSError), name
+
+
+def test_construct_store_cache_diff_bucket_name(
+    minio_bucket: tuple[S3Config, ClientConfig],
+):
+    register("s3")
+    fs: FsspecStore = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+        asynchronous=True,
+        max_cache_size=5,
+    )
+
+    bucket_names = [f"bucket{i}" for i in range(20)]  # 20 unique buckets
+
+    with patch.object(
+        fs,
+        "_construct_store",
+        wraps=fs._construct_store,
+    ) as mock_construct:
+        for bucket in bucket_names:
+            fs._construct_store(bucket)
+
+        # Since the cache is set to 16, only the first 16 unique calls should be cached
+        assert mock_construct.cache_info().currsize == 5, (
+            "Cache should only store 5 cache"
+        )
+        assert mock_construct.cache_info().hits == 0, "Cache should hits 0 times"
+        assert mock_construct.cache_info().misses == 20, "Cache should miss 20 times"
+
+
+def test_construct_store_cache_same_bucket_name(
+    minio_bucket: tuple[S3Config, ClientConfig],
+):
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+        asynchronous=True,
+        max_cache_size=5,
+    )
+
+    bucket_names = ["bucket" for _ in range(20)]
+
+    with patch.object(
+        fs,
+        "_construct_store",
+        wraps=fs._construct_store,
+    ) as mock_construct:
+        for bucket in bucket_names:
+            fs._construct_store(bucket)
+
+        assert mock_construct.cache_info().currsize == 1, (
+            "Cache should only store 1 cache"
+        )
+        assert mock_construct.cache_info().hits == 20 - 1, (
+            "Cache should hits 20-1 times"
+        )
+        assert mock_construct.cache_info().misses == 1, "Cache should only miss once"
+
+
+def test_fsspec_filesystem_cache(
+    minio_bucket: tuple[S3Config, ClientConfig],
+):
+    """Test caching behavior of fsspec.filesystem with the _Cached metaclass."""
+    register("s3")
+
+    # call fsspec.filesystem() multiple times with the same parameters
+    fs1 = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+    fs2 = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+
+    # Same parameters should return the same instance
+    assert fs1 is fs2, (
+        "fsspec.filesystem() with the same parameters should return the cached instance"
+    )
+
+    # Changing parameters should create a new instance
+    fs3 = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+        asynchronous=True,
+    )
+    assert fs1 is not fs3, (
+        "fsspec.filesystem() with different parameters should return a new instance"
+    )
+
+
+def test_split_path(fs: FsspecStore):
+    # in url format, with bucket
+    assert fs._split_path("s3://mybucket/path/to/file") == ("mybucket", "path/to/file")
+    assert fs._split_path("s3://data-bucket/") == ("data-bucket", "")
+
+    # path format, with bucket
+    assert fs._split_path("mybucket/path/to/file") == ("mybucket", "path/to/file")
+    assert fs._split_path("data-bucket/") == ("data-bucket", "")
+
+    # url format, wrong protocol
+    with pytest.raises(ValueError, match=r"Expected protocol to be s3. Got gs"):
+        fs._split_path("gs://data-bucket/")
+
+    # in url format, without bucket
+    file_fs = FsspecStore("file")
+    assert file_fs._split_path("file:///mybucket/path/to/file") == (
+        "",
+        "/mybucket/path/to/file",
+    )
+    assert file_fs._split_path("file:///data-bucket/") == ("", "/data-bucket/")
+
+    # path format, without bucket
+    assert file_fs._split_path("/mybucket/path/to/file") == (
+        "",
+        "/mybucket/path/to/file",
+    )
+    assert file_fs._split_path("/data-bucket/") == ("", "/data-bucket/")
+
+    # relative path, without bucket -> resolved to absolute for the "file" protocol
+    rel_bucket, rel_path = file_fs._split_path("relative/path/to/file")
+    assert rel_bucket == ""
+    assert Path(rel_path).is_absolute()
+    assert rel_path.endswith("relative/path/to/file")
+
+    # memory protocol keeps relative paths untouched (paths are virtual)
+    memory_fs = FsspecStore("memory")  # type: ignore (no __init__ overload for memory)
+    assert memory_fs._split_path("relative/path/to/file") == (
+        "",
+        "relative/path/to/file",
+    )
+
+
+def test_list(
+    minio_bucket: tuple[S3Config, ClientConfig],
+):
+    bucket = minio_bucket[0].get("bucket")
+    assert bucket is not None
+
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+
+    fs.pipe_file(f"{bucket}/afile", b"hello world")
+
+    out = fs.ls(f"{bucket}", detail=False, refresh=True)
+    assert f"{bucket}/afile" in out
+    fs.pipe_file(f"{bucket}/dir/bfile", b"data")
+    out = fs.ls(f"{bucket}", detail=False, refresh=True)
+    assert f"{bucket}/afile" in out
+    assert f"{bucket}/dir" in out
+    out = fs.ls(f"{bucket}", detail=True, refresh=True)
+    types = {o["name"]: o["type"] for o in out}
+    assert types.get(f"{bucket}/afile") == "file"
+    assert types.get(f"{bucket}/dir") == "directory"
+
+
+@pytest.mark.asyncio
+async def test_list_async(
+    minio_bucket: tuple[S3Config, ClientConfig],
+):
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+        asynchronous=True,
+    )
+
+    bucket = minio_bucket[0].get("bucket")
+    assert bucket is not None
+
+    await fs._pipe_file(f"{bucket}/afile", b"hello world")
+
+    out = await fs._ls(f"{bucket}", detail=False, refresh=True)
+    assert f"{bucket}/afile" in out
+    await fs._pipe_file(f"{bucket}/dir/bfile", b"data")
+    out = await fs._ls(f"{bucket}", detail=False, refresh=True)
+    assert f"{bucket}/afile" in out
+    assert f"{bucket}/dir" in out
+    out = await fs._ls(f"{bucket}", detail=True, refresh=True)
+    types = {o["name"]: o["type"] for o in out}
+    assert types.get(f"{bucket}/afile") == "file"
+    assert types.get(f"{bucket}/dir") == "directory"
+
+
+def test_info(minio_bucket: tuple[S3Config, ClientConfig]):
+    register("s3")
+    fs = fsspec.filesystem("s3", config=minio_bucket[0], client_options=minio_bucket[1])
+
+    bucket = minio_bucket[0].get("bucket")
+    assert bucket is not None
+
+    fs.pipe_file(f"{bucket}/dir/afile", b"data")
+
+    # info for directory
+    out = fs.info(f"{bucket}/dir")
+    assert out == {
+        "name": f"{bucket}/dir",
+        "type": "directory",
+        "size": 0,
+    }
+
+    # info for file not exist
+    with pytest.raises(FileNotFoundError):
+        fs.info(f"{bucket}/dir/bfile")
+
+    # info for directory not exist
+    with pytest.raises(FileNotFoundError):
+        fs.info(f"{bucket}/dir_1/")
+
+    # also test with isdir
+    assert fs.isdir(f"{bucket}/dir")
+    assert not fs.isdir(f"{bucket}/dir/afile")
+    assert not fs.isdir(f"{bucket}/dir/bfile")
+    assert not fs.isdir(f"{bucket}/dir_1/")
+
+
+@pytest.mark.asyncio
+async def test_info_async(minio_bucket: tuple[S3Config, ClientConfig]):
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+        asynchronous=True,
+    )
+
+    bucket = minio_bucket[0].get("bucket")
+    assert bucket is not None
+
+    await fs._pipe_file(f"{bucket}/dir/afile", b"data")
+
+    # info for directory
+    out = await fs._info(f"{bucket}/dir")
+    assert out == {
+        "name": f"{bucket}/dir",
+        "type": "directory",
+        "size": 0,
+    }
+
+    # info for file not exist
+    with pytest.raises(FileNotFoundError):
+        await fs._info(f"{bucket}/dir/bfile")
+
+    # info for directory not exist
+    with pytest.raises(FileNotFoundError):
+        await fs._info(f"{bucket}/dir_1/")
+
+    # also test with isdir
+    assert await fs._isdir(f"{bucket}/dir")
+    assert not await fs._isdir(f"{bucket}/dir/afile")
+    assert not await fs._isdir(f"{bucket}/dir/bfile")
+    assert not await fs._isdir(f"{bucket}/dir_1/")
+
+
+def test_put_files(minio_bucket: tuple[S3Config, ClientConfig]):
+    """Test put new file to S3 synchronously."""
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+
+    bucket = minio_bucket[0].get("bucket")
+    assert bucket is not None
+
+    with TemporaryDirectory() as tmp:
+        test_data = "Hello, World!"
+        local_file_path = Path(tmp) / "test_file.txt"
+        local_file_path.write_text(test_data)
+
+        assert local_file_path.read_text() == test_data
+        remote_file_path = f"{bucket}/uploaded_test_file.txt"
+
+        fs.put(str(local_file_path), remote_file_path)
+
+    # Verify file upload
+    assert remote_file_path in fs.ls(f"{bucket}", detail=False, refresh=True)
+    assert fs.cat(remote_file_path)[remote_file_path] == test_data.encode()  # type: ignore (fsspec)
+
+    # Cleanup remote file
+    fs.rm(remote_file_path)
+
+
+@pytest.mark.asyncio
+async def test_put_files_async(
+    minio_bucket: tuple[S3Config, ClientConfig],
+):
+    """Test put new file to S3 asynchronously."""
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+        asynchronous=True,
+    )
+
+    with TemporaryDirectory() as tmp:
+        test_data = "Hello, World!"
+        local_file_path = Path(tmp) / "test_file.txt"
+        local_file_path.write_text(test_data)
+
+        assert local_file_path.read_text() == test_data
+        remote_file_path = f"{TEST_BUCKET_NAME}/uploaded_test_file.txt"
+
+        await fs._put(str(local_file_path), remote_file_path)
+
+    # Verify file upload
+    assert remote_file_path in await fs._ls(
+        f"{TEST_BUCKET_NAME}",
+        detail=False,
+        refresh=True,
+    )
+    out = await fs._cat([remote_file_path])
+    assert out[remote_file_path] == test_data.encode()
+
+    # Cleanup remote file
+    await fs._rm(remote_file_path)
+
+
+@pytest.mark.network
+def test_remote_parquet(minio_bucket: tuple[S3Config, ClientConfig]):
+    register(["https", "s3"])
+    fs = fsspec.filesystem("https")
+    fs_s3 = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+
+    url = "github.com/opengeospatial/geoparquet/raw/refs/heads/main/examples/example.parquet"  # noqa: E501
+    pq.read_metadata(url, filesystem=fs)
+
+    # also test with full url
+    url = "https://github.com/opengeospatial/geoparquet/raw/refs/heads/main/examples/example.parquet"
+    pq.read_metadata(url, filesystem=fs)
+
+    # Read the remote Parquet file into a PyArrow table
+    table = pq.read_table(url, filesystem=fs)
+    write_parquet_path = f"{TEST_BUCKET_NAME}/test.parquet"
+
+    # Write the table to s3
+    pq.write_table(table, write_parquet_path, filesystem=fs_s3)
+
+    out = fs_s3.ls(f"{TEST_BUCKET_NAME}", detail=False, refresh=True)
+    assert f"{TEST_BUCKET_NAME}/test.parquet" in out
+
+    # Read Parquet file from s3 and verify its contents
+    parquet_table = pq.read_table(write_parquet_path, filesystem=fs_s3)
+    assert parquet_table.equals(
+        table,
+    ), "Parquet file contents from s3 do not match the original file"
+
+
+def test_multi_file_ops(minio_bucket: tuple[S3Config, ClientConfig]):
+    register("s3")
+    fs = fsspec.filesystem(
+        "s3",
+        config=minio_bucket[0],
+        client_options=minio_bucket[1],
+    )
+
+    bucket = minio_bucket[0].get("bucket")
+    assert bucket is not None
+
+    fs.pipe_file(f"{bucket}/afile", b"hello world")
+
+    data = {
+        f"{bucket}/dir/test1": b"test data1",
+        f"{bucket}/dir/test2": b"test data2",
+    }
+    fs.pipe(data)
+    out = fs.cat(list(data))
+    assert out == data
+    out = fs.cat(f"{bucket}/dir", recursive=True)
+    assert out == data
+    fs.cp(f"{bucket}/dir", f"{bucket}/dir2", recursive=True)
+    out = fs.find(f"{bucket}", detail=False)
+    assert out == [
+        f"{bucket}/afile",
+        f"{bucket}/dir/test1",
+        f"{bucket}/dir/test2",
+        f"{bucket}/dir2/test1",
+        f"{bucket}/dir2/test2",
+    ]
+    fs.rm([f"{bucket}/dir", f"{bucket}/dir2"], recursive=True)
+    out = fs.find(f"{bucket}", detail=False)
+    assert out == [f"{bucket}/afile"]
+
+
+def test_cat_ranges_one(fs: FsspecStore):
+    data1 = os.urandom(10000)
+    fs.pipe_file(f"{TEST_BUCKET_NAME}/data1", data1)
+
+    # single range
+    out = fs.cat_ranges([f"{TEST_BUCKET_NAME}/data1"], [10], [20])
+    assert out == [data1[10:20]]
+
+    # range oob
+    out = fs.cat_ranges([f"{TEST_BUCKET_NAME}/data1"], [0], [11000])
+    assert out == [data1]
+
+    # two disjoint ranges, one file
+    out = fs.cat_ranges(
+        [f"{TEST_BUCKET_NAME}/data1", f"{TEST_BUCKET_NAME}/data1"],
+        [10, 40],
+        [20, 60],
+    )
+    assert out == [data1[10:20], data1[40:60]]
+
+    # two adjoining ranges, one file
+    out = fs.cat_ranges(
+        [f"{TEST_BUCKET_NAME}/data1", f"{TEST_BUCKET_NAME}/data1"],
+        [10, 30],
+        [20, 60],
+    )
+    assert out == [data1[10:20], data1[30:60]]
+
+    # two overlapping ranges, one file
+    out = fs.cat_ranges(
+        [f"{TEST_BUCKET_NAME}/data1", f"{TEST_BUCKET_NAME}/data1"],
+        [10, 15],
+        [20, 60],
+    )
+    assert out == [data1[10:20], data1[15:60]]
+
+    # completely overlapping ranges, one file
+    out = fs.cat_ranges(
+        [f"{TEST_BUCKET_NAME}/data1", f"{TEST_BUCKET_NAME}/data1"],
+        [10, 0],
+        [20, 60],
+    )
+    assert out == [data1[10:20], data1[0:60]]
+
+
+def test_cat_ranges_two(fs: FsspecStore):
+    data1 = os.urandom(10000)
+    data2 = os.urandom(10000)
+    fs.pipe({f"{TEST_BUCKET_NAME}/data1": data1, f"{TEST_BUCKET_NAME}/data2": data2})
+
+    # single range in each file
+    out = fs.cat_ranges(
+        [f"{TEST_BUCKET_NAME}/data1", f"{TEST_BUCKET_NAME}/data2"],
+        [10, 10],
+        [20, 20],
+    )
+    assert out == [data1[10:20], data2[10:20]]
+
+
+@pytest.mark.xfail(reason="negative and mixed ranges not implemented")
+def test_cat_ranges_mixed(fs: FsspecStore):
+    data1 = os.urandom(10000)
+    data2 = os.urandom(10000)
+    fs.pipe({"data1": data1, "data2": data2})
+
+    # single range in each file
+    out = fs.cat_ranges(["data1", "data1", "data2"], [-10, None, 10], [None, -10, -10])
+    assert out == [data1[-10:], data1[:-10], data2[10:-10]]
+
+
+@pytest.mark.xfail(reason="atomic writes not working on moto")
+def test_atomic_write(fs: FsspecStore):
+    fs.pipe_file("data1", b"data1")
+    fs.pipe_file("data1", b"data1", mode="overwrite")
+    with pytest.raises(ValueError):  # noqa: PT011
+        fs.pipe_file("data1", b"data1", mode="create")
+
+
+def test_cat_ranges_error(fs: FsspecStore):
+    with pytest.raises(ValueError):  # noqa: PT011
+        fs.cat_ranges([f"{TEST_BUCKET_NAME}/path"], [], [])

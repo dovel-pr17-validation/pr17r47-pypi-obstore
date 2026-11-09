@@ -1,0 +1,202 @@
+from __future__ import annotations
+
+import inspect
+import socket
+import sysconfig
+import time
+import warnings
+from typing import TYPE_CHECKING, Any
+
+import docker
+import pytest
+import requests
+from minio import Minio
+from minio.commonconfig import ENABLED
+from minio.versioningconfig import VersioningConfig
+from requests.exceptions import RequestException
+
+from obstore.store import S3Store
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """On free-threaded Python, enable parallel test execution by default."""
+    if (
+        sysconfig.get_config_var("Py_GIL_DISABLED")
+        and hasattr(
+            config.option,
+            "parallel_threads",
+        )
+        and config.option.parallel_threads == 1
+    ):
+        config.option.parallel_threads = "auto"
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Mark async tests as thread-unsafe.
+
+    pytest-asyncio and pytest-run-parallel are incompatible: run-parallel wraps
+    the test function before asyncio can schedule it, producing an unawaited
+    coroutine. Marking every async test as thread_unsafe keeps them on the main
+    thread where pytest-asyncio expects to run them.
+
+    See: https://github.com/Quansight-Labs/pytest-run-parallel/issues/14
+    """
+    for item in items:
+        if isinstance(item, pytest.Function) and inspect.iscoroutinefunction(
+            item.function,
+        ):
+            item.add_marker(pytest.mark.thread_unsafe)
+
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from obstore.store import ClientConfig, S3Config
+
+TEST_BUCKET_NAME = "test-bucket"
+TEST_VERSIONED_BUCKET_NAME = "test-versioned-bucket"
+
+
+def find_available_port() -> int:
+    """Find a free port on localhost.
+
+    Note that this is susceptible to race conditions.
+    """
+    # https://stackoverflow.com/a/36331860
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # Bind to a free port provided by the host.
+        s.bind(("", 0))
+
+        # Return the port number assigned.
+        return s.getsockname()[1]
+
+
+@pytest.fixture(scope="session")
+def minio_config() -> Generator[tuple[S3Config, ClientConfig], Any, None]:
+    warnings.warn(
+        "Creating Docker client...",
+        UserWarning,
+        stacklevel=1,
+    )
+    docker_client = docker.from_env()
+    warnings.warn(
+        "Finished creating Docker client...",
+        UserWarning,
+        stacklevel=1,
+    )
+
+    username = "minioadmin"
+    password = "minioadmin"  # noqa: S105
+    port = find_available_port()
+    console_port = find_available_port()
+
+    print(f"Using ports: {port=}, {console_port=}")  # noqa: T201
+    print(  # noqa: T201
+        f"Log on to MinIO console at http://localhost:{console_port} with "
+        f"{username=} and {password=}",
+    )
+
+    warnings.warn(
+        "Starting MinIO container...",
+        UserWarning,
+        stacklevel=1,
+    )
+    minio_container = docker_client.containers.run(
+        # MinIO no longer publishes a public community image; Silo is a
+        # community-maintained fork of the MinIO server.
+        "pgsty/silo:RELEASE.2026-09-16T00-00-00Z",
+        "server /data --console-address :9001",
+        detach=True,
+        ports={
+            "9000/tcp": port,
+            "9001/tcp": console_port,
+        },
+        environment={
+            "MINIO_ROOT_USER": username,
+            "MINIO_ROOT_PASSWORD": password,
+        },
+    )
+    warnings.warn(
+        "Finished starting MinIO container...",
+        UserWarning,
+        stacklevel=1,
+    )
+
+    # Wait for MinIO to be ready
+    endpoint = f"http://localhost:{port}"
+    wait_for_minio(endpoint, timeout=30)
+
+    minio_client = Minio(
+        f"localhost:{port}",
+        access_key=username,
+        secret_key=password,
+        secure=False,
+    )
+    minio_client.make_bucket(TEST_BUCKET_NAME)
+    minio_client.make_bucket(TEST_VERSIONED_BUCKET_NAME)
+    minio_client.set_bucket_versioning(
+        TEST_VERSIONED_BUCKET_NAME,
+        VersioningConfig(ENABLED),
+    )
+
+    s3_config: S3Config = {
+        "bucket": TEST_BUCKET_NAME,
+        "endpoint": endpoint,
+        "access_key_id": username,
+        "secret_access_key": password,
+        "virtual_hosted_style_request": False,
+    }
+    client_options: ClientConfig = {"allow_http": True}
+
+    yield (s3_config, client_options)
+
+    minio_container.stop()
+    minio_container.remove()
+
+
+@pytest.fixture
+def minio_bucket(
+    minio_config: tuple[S3Config, ClientConfig],
+) -> Generator[tuple[S3Config, ClientConfig], Any, None]:
+    # Clean bucket before each test so tests always start with empty state,
+    # regardless of whether a previous test's teardown failed or was incomplete.
+    store = S3Store(config=minio_config[0], client_options=minio_config[1])
+    objects = store.list().collect()
+    store.delete([obj["path"] for obj in objects])
+
+    yield minio_config
+
+    # Best-effort cleanup after the test as well.
+    objects = store.list().collect()
+    store.delete([obj["path"] for obj in objects])
+
+
+@pytest.fixture
+def minio_store(minio_bucket: tuple[S3Config, ClientConfig]) -> S3Store:
+    """Create an S3Store configured for MinIO integration testing."""
+    return S3Store(config=minio_bucket[0], client_options=minio_bucket[1])
+
+
+@pytest.fixture
+def minio_versioned_store(minio_config: tuple[S3Config, ClientConfig]) -> S3Store:
+    """Create an S3Store for a MinIO bucket with versioning enabled."""
+    config = minio_config[0].copy()
+    config["bucket"] = TEST_VERSIONED_BUCKET_NAME
+    return S3Store(config=config, client_options=minio_config[1])
+
+
+def wait_for_minio(endpoint: str, timeout: int):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            # MinIO health check endpoint
+            response = requests.get(f"{endpoint}/minio/health/live", timeout=2)
+            if response.status_code == 200:
+                return
+        except RequestException:
+            pass
+        time.sleep(0.5)
+
+    exc_str = f"MinIO failed to start within {timeout} seconds"
+    raise TimeoutError(exc_str)

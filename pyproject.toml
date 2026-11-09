@@ -1,0 +1,125 @@
+[project]
+name = "test-env"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+docs = [
+    # Workaround for https://github.com/mkdocs/mkdocs/issues/4032
+    "click<8.3",
+    "mkdocs-material[imaging]>=9.6.3",
+    "mkdocs>=1.6.1,<2",
+    "mkdocstrings[python]>=1.0",
+    "mkdocs-jupyter>=0.24.8",
+    "mkdocs-redirects>=1.2.2",
+    "mike>=2.1.3",
+    "griffe>=1.6.0",
+    "griffe-inherited-docstrings>=1.0.1",
+    # We use ruff format ourselves, but mkdocstrings requires black to be
+    # installed to format signatures in the docs
+    "black>=24.8.0",
+]
+# dependencies used in examples but added here for pyright CI run from top-level
+examples = ["fastapi>=0.115.12", "tqdm>=4.67.1"]
+dev = [
+    "aiohttp-retry>=2.9.1",
+    "aiohttp>=3.11.13",
+    "arro3-core>=0.6.5",
+    "azure-identity>=1.21.0",
+    "boto3>=1.38.21",
+    "docker>=7.1.0",
+    "fsspec>=2024.10.0",
+    "google-auth>=2.38.0",
+    "ipykernel>=6.29.5",
+    "maturin-import-hook>=0.2.0",
+    "maturin>=1.14.0",
+    "minio>=7.2.16",
+    "mypy>=1.15.0",
+    "obspec>=0.1.0",
+    "pyarrow>=17.0.0",
+    "pystac-client>=0.8.3",
+    "pystac>=1.10.1",
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mypy-plugins>=3.2.0",
+    "pytest-run-parallel>=0.3.0;python_version>='3.13'",
+    "python-dotenv>=1.0.1",
+    "pyzmq>=27.1.0",
+    "ruff>=0.16.0",
+    "types-boto3[s3,sts]>=1.36.23",
+    "types-requests>=2.31.0.6",
+    "urllib3>=2.0",
+]
+
+[tool.uv.workspace]
+members = ["examples/fastapi-example"]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "CPY001",  # CPY001 Missing copyright notice at top of file
+    "D104",    # Missing docstring in public package
+    "D203",    # 1 blank line required before class docstring (conflicts with D211)
+    "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "EM101",
+    "FIX002",  # Line contains TODO, consider resolving the issue
+    "INP001",  # File is part of an implicit namespace package.
+    "PLC0415", # `import` should be at the top-level of a file
+    "PYI021",  # docstring-in-stub
+    "PYI051",  # redundant-literal-union
+    "PYI011",  # typed-argument-default-in-stub
+    "S101",    # allow assert
+    "TD",      # Todo comments
+    "TRY003",  # Avoid specifying long messages outside the exception class
+]
+
+[tool.ruff.lint.per-file-ignores]
+"examples/*" = [
+    "PGH004", # Use specific rule codes when using `ruff: noqa`
+]
+"*.pyi" = [
+    "ANN204", # Missing return type annotation for special method
+    "E501",   # Line too long
+]
+"tests/*" = [
+    "ANN201",  # Missing return type annotation for public function
+    "ANN202",  # Missing return type annotation for private function `it`
+    "D100",    # Missing docstring in public module
+    "D103",    # Missing docstring in public function
+    "PLR2004", # Magic value used in comparison, consider replacing `100` with a constant variable
+    "S301",    # `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
+    "SLF001",  # Private member accessed
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["obstore"]
+
+[tool.pyright]
+exclude = ["**/__pycache__", "examples", ".venv"]
+executionEnvironments = [
+    { root = "./", extraPaths = ["./obstore/python"] }, # Tests.
+    { root = "./obstore/python" },
+]
+
+[tool.pytest.ini_options]
+addopts = "-v --mypy-only-local-stub"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+    "network: mark the test as requiring a network connection",
+    "parallel_threads: mark test for concurrent thread execution",
+]
+thread_unsafe_fixtures = ["minio_bucket", "minio_store", "minio_versioned_store"]
+
+[tool.mypy]
+files = ["obstore/python"]
+
+[[tool.mypy.overrides]]
+module = ["fsspec.*"]
+ignore_missing_imports = true
